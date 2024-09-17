@@ -3,19 +3,22 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from "@/components/ui/button"
-import { Home, Info, LogIn, UserPlus, Zap, Users, Search, Layers } from 'lucide-react'
-import Link from 'next/link'
+import { Input } from "@/components/ui/input"
+import { Home, Info, LogIn, UserPlus, Users, Search, Layers, MessageSquare } from "lucide-react"
+import Link from "next/link"
 import Image from 'next/image'
-import { useAuth } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs"
+import { useRouter } from "next/navigation"
+import { useUser } from "@clerk/nextjs"
+import { useMutation } from "convex/react"
+import { api } from "@/convex/_generated/api"
 
 export default function LandingPage() {
-  console.log("Rendering LandingPage component");
   const [mounted, setMounted] = useState(false)
-  const { isSignedIn, signOut, isLoaded } = useAuth();
-  const router = useRouter();
-  const { user } = useUser();
+  const [email, setEmail] = useState('')
+  const { isSignedIn, signOut, isLoaded } = useAuth()
+  const router = useRouter()
+  const { user } = useUser()
 
   useEffect(() => {
     setMounted(true)
@@ -23,15 +26,57 @@ export default function LandingPage() {
 
   const handleAuthAction = (action: 'login' | 'signup') => {
     if (isSignedIn) {
-      signOut();
+      signOut()
     } else {
-      router.push(`/sign-${action}`);
+      router.push(`/sign-${action}`)
+    }
+  }
+
+  const handleSkillMatchingClick = () => {
+    if (isSignedIn) {
+      router.push('/dashboard')
+    } else {
+      router.push('/sign-in')
+    }
+  }
+
+  const handleCollaborationClick = () => {
+    if (isSignedIn) {
+      router.push('/collaboration')
+    } else {
+      router.push('/sign-in')
+    }
+  }
+
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault()
+    // Here you would typically handle the subscription logic
+    console.log('Subscribed with email:', email)
+    setEmail('')
+  }
+
+  const createCheckoutSession = useMutation(api.stripe.createCheckoutSession)
+
+  const handleBuySubscription = async () => {
+    try {
+      const result = await createCheckoutSession()
+      if (result.url) {
+        window.location.href = result.url
+      } else {
+        throw new Error('Failed to create checkout session')
+      }
+    } catch (error) {
+      console.error('Error in handleBuySubscription:', error)
     }
   };
 
+  const handleVectorSearchClick = () => {
+    router.push('/discover')
+  }
+
   if (!mounted || !isLoaded) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-900">
+      <div className="flex items-center justify-center h-screen w-screen bg-gray-900">
         <Image
           src="/logo.svg"
           alt="SkillSync Logo"
@@ -44,131 +89,141 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* Navigation Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-800 bg-opacity-50 backdrop-filter backdrop-blur-lg">
-        <div className="container mx-auto px-6 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Image src="/logo.svg" alt="SkillSync Logo" width={40} height={40} />
-              <span className="text-xl font-bold">SkillSync</span>
-            </div>
-            <div className="hidden md:flex space-x-4">
-              <NavItem icon={<Home size={18} />} text="Home" />
-              <NavItem icon={<Info size={18} />} text="About" />
-              {user && (
-                <Link href="/dashboard">
-                  <Button className="flex items-center space-x-1">
-                    <Users size={18} />
-                    <span>Dashboard</span>
-                  </Button>
-                </Link>
-              )}
-              <Button onClick={() => handleAuthAction('login')} className="flex items-center space-x-1">
-                <LogIn size={18} />
-                <span>{isSignedIn ? 'Logout' : 'Login'}</span>
+    <div className="flex flex-col min-h-screen w-full bg-gradient-to-b from-gray-900 to-gray-800 text-white overflow-x-hidden">
+      <header className="p-4 w-full">
+        <nav className="flex justify-between items-center max-w-7xl mx-auto px-4">
+          <Link href="/" className="text-2xl font-bold flex items-center">
+            <Image src="/logo.svg" alt="SkillSync Logo" width={40} height={40} />
+            <span className="ml-2">SkillSync</span>
+          </Link>
+          <div className="flex space-x-4 items-center">
+            <NavItem href="/" icon={<Home className="w-6 h-6" />} text="Home" />
+            <NavItem href="/about" icon={<Info className="w-6 h-6" />} text="About" />
+            <Button onClick={handleBuySubscription} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-full transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg">
+              Buy Subscription
+            </Button>
+            <Button onClick={() => handleAuthAction('login')} className="flex items-center space-x-1">
+              <LogIn className="w-6 h-6" />
+              <span>{isSignedIn ? 'Logout' : 'Login'}</span>
+            </Button>
+            {!isSignedIn && (
+              <Button onClick={() => handleAuthAction('signup')} className="flex items-center space-x-1">
+                <UserPlus className="w-6 h-6" />
+                <span>Sign Up</span>
               </Button>
-              {!isSignedIn && (
-                <Button onClick={() => handleAuthAction('signup')} className="flex items-center space-x-1">
-                  <UserPlus size={18} />
-                  <span>Sign Up</span>
-                </Button>
-              )}
-            </div>
+            )}
           </div>
-        </div>
-      </nav>
-
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4">
-        <div className="container mx-auto text-center">
-          <motion.h1 
-            className="text-5xl md:text-6xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            Connect & Sync Your Skills
-          </motion.h1>
-          <motion.p 
-            className="text-xl mb-8 text-gray-300"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            Unlock your potential with our innovative skill-matching platform
-          </motion.p>
-          <motion.div 
-            className="flex justify-center space-x-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-          >
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full transition duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg">
-              Get Started
-            </Button>
-            <Button variant="outline" className="bg-transparent hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-full border-2 border-blue-600 transition duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg">
-              Learn More
-            </Button>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Dynamic Animation */}
-      <div className="relative h-64 mb-20">
-        <NetworkAnimation />
-      </div>
-
-      {/* Features Section */}
-      <section className="py-20 bg-gray-800">
+        </nav>
+        <form onSubmit={handleSubscribe} className="mt-4 flex justify-center items-center space-x-2 max-w-7xl mx-auto px-4">
+          <Input
+            type="email"
+            placeholder="Enter your email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="max-w-xs bg-gray-700 text-white placeholder-gray-400 border-gray-600 focus:border-blue-500"
+            required
+          />
+          <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg animate-pulse">
+            Subscribe
+          </Button>
+        </form>
+      </header>
+      <main className="flex-grow flex flex-col justify-center w-full">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <FeatureCard 
-              icon={<Zap size={40} className="text-yellow-400" />}
-              title="Real-time Collaboration"
-              description="Work together seamlessly in real-time with other users."
-            />
-            <FeatureCard 
-              icon={<Users size={40} className="text-green-400" />}
-              title="Skill Matching"
-              description="Find the perfect match for your project based on skills and expertise."
-            />
-            <FeatureCard 
-              icon={<Search size={40} className="text-blue-400" />}
-              title="Vector Search"
-              description="Utilize advanced vector search to find relevant skills and users."
-            />
-            <FeatureCard 
-              icon={<Layers size={40} className="text-purple-400" />}
-              title="Multiplayer Features"
-              description="Engage in multiplayer activities to enhance your skills collaboratively."
-            />
-          </div>
+          <section className="py-20 text-center relative overflow-hidden">
+            <motion.h1 
+              className="text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+            >
+              Connect & Sync Your Skills
+            </motion.h1>
+            <motion.p 
+              className="text-xl mb-8 text-gray-300"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+            >
+              Unlock your potential with our innovative skill-matching platform
+            </motion.p>
+            <motion.div 
+              className="flex justify-center space-x-4"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+            >
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg">
+                Get Started
+              </Button>
+              <Button variant="outline" className="bg-transparent hover:bg-white hover:text-gray-900 text-white font-bold py-2 px-6 rounded-full transition-all duration-300 ease-in-out transform hover:scale-105 border-2 border-white">
+                Learn More
+              </Button>
+            </motion.div>
+            <div className="mt-12 relative h-64">
+              <NetworkAnimation />
+            </div>
+          </section>
+          <section className="py-20">
+            <h2 className="text-3xl font-bold mb-12 text-center">Our Features</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <FeatureCard
+                icon={<MessageSquare className="w-12 h-12 text-blue-400" />}
+                title="Real-time Collaboration"
+                description="Work together seamlessly in real-time with other skilled professionals."
+                onClick={handleCollaborationClick}
+              />
+              <FeatureCard
+                icon={<Users className="w-12 h-12 text-green-400" />}
+                title="Skill Matching"
+                description="Find the perfect match for your project based on skills and experience."
+                onClick={handleSkillMatchingClick}
+              />
+              <FeatureCard
+                icon={<Search className="w-12 h-12 text-purple-400" />}
+                title="Vector Search"
+                description="Utilize advanced vector search to find relevant skills and projects."
+                onClick={handleVectorSearchClick}
+              />
+              <FeatureCard
+                icon={<Layers className="w-12 h-12 text-red-400" />}
+                title="Multiplayer Features"
+                description="Engage in multiplayer coding sessions and collaborative problem-solving."
+                onClick={() => {}}
+              />
+            </div>
+          </section>
         </div>
-      </section>
+      </main>
     </div>
   )
 }
 
-function NavItem({ icon, text }: { icon: React.ReactNode; text: string }) {
+function NavItem({ href, icon, text }: { href: string; icon: React.ReactNode; text: string }) {
   return (
-    <Link href="#" className="flex items-center space-x-1 text-gray-300 hover:text-white transition duration-300">
+    <Link href={href} className="flex items-center space-x-1 text-gray-300 hover:text-white transition duration-300">
       {icon}
-      <span>{text}</span>
+      <span className="sr-only">{text}</span>
     </Link>
   )
 }
 
-function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
+interface FeatureCardProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  onClick: () => void;
+}
+
+function FeatureCard({ icon, title, description, onClick }: FeatureCardProps) {
   return (
-    <motion.div 
-      className="bg-gray-700 p-6 rounded-lg shadow-lg"
+    <motion.div
       whileHover={{ scale: 1.05 }}
-      transition={{ duration: 0.3 }}
+      transition={{ type: "spring", stiffness: 300, damping: 10 }}
+      className="bg-gray-800 p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 ease-in-out cursor-pointer"
+      onClick={onClick}
     >
-      <div className="flex items-center justify-center mb-4">
-        {icon}
-      </div>
+      <div className="flex justify-center mb-4">{icon}</div>
       <h3 className="text-xl font-semibold mb-2 text-center">{title}</h3>
       <p className="text-gray-400 text-center">{description}</p>
     </motion.div>
